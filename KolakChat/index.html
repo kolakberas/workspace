@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <title>KolakChat</title>
+        <style>
+            body { font: 100% Helvetica, Arial, sans-serif }
+            h1 {font-size: 40px; }
+            #send-message { display: none; }
+            #createacc { display: none; }
+            #nicknames { display: none; width: 300px; float: right; }
+            #messages { width: 1000px; height: 1000px; }
+            #messages p { font-size: 12px; line-height: 110%; padding: 5px 5px; margin: 0px 0px }
+            #messages p strong { margin-right: 5px; }
+            #messages p em { margin-right: 5px; color: gray; font-size: 12px; padding: 10px 5px}
+            #messages p.one { background-color: #fefefe; }
+            #messages p.two { background-color: #eeeeee; }
+        </style>
+    </head>
+    <body>
+        <h1>KolakChat</h1>
+        <form id = "login">
+            <label for="username">User Name:</label>
+            <input type="text" id="username" /><br>
+            <label for="password">Password:</label>
+            <input type="password" id="password" /><br><br>
+            <input type="submit" value="Login"/>
+            <input type="button" id="newacc" value="Create New Account"/>
+            <br><br>
+            <span id="loginerrormsg" style="color: red"> </span>
+        </form>
+        <form id = "createacc">
+            <p> Please enter your details </p>
+            <label for="new_name">Name:</label>
+            <input type="text" id="new_name" /><br>
+            <label for="new_email">E-mail:</label>
+            <input type="text" id="new_email" /><br>
+            <br>
+            <label for="new_username">Username:</label>
+            <input type="text" id="new_username" /><br>
+            <label for="new_password">Password:</label>
+            <input type="password" id="new_password" /><br><br>
+            <input type="submit" value="Submit"/>
+            <input type="button" id="new_cancel" value="Cancel"/>
+        </form>
+        <form id = "send-message">
+            <input type="text" id="message" placeholder="Enter your message here" size="75" style="height:20px"></textarea>
+            <input type="submit" value="Send" />
+            <input type="button" id="kolak" value="͡° ͜ʖ ͡°" />
+        </form>
+        <section id = "nicknames">
+            <p> <strong> Chat Participants: </strong> </p>
+            <ul></ul>
+        </section>
+        <br><br>
+        <section id = "messages">
+        </section>
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
+        <script src="/socket.io/socket.io.js"></script>
+        <script>
+            var socket = io.connect();
+            jQuery(function ($) {
+                var username = $('#username');
+                var password = $('#password');
+                var loginForm = $('#login');
+                var loginErrMsg = $('#login span');
+                
+                var new_name = $('#new_name');
+                var new_email = $('#new_email');
+                var new_username = $('#new_username');
+                var new_password = $('#new_password');
+                var createAccForm = $('#createacc');
+
+                var nicknames = $('#nicknames');
+                var nicknamesList = $('#nicknames ul');
+                var messageForm = $('#send-message');
+                var message = $('#message');
+                var messages = $('#messages');
+                var toggle = true;
+                username.focus();
+                
+                loginForm.submit(function(event) {
+                    event.preventDefault();
+                    socket.emit('login', { username: username.val(), password: password.val() }, function(data) {
+                        if (data) {
+                            console.log('Login successfully');
+                            loginForm.hide();
+                            messageForm.show();
+                            nicknames.show();
+                            message.focus();
+                        } else {
+                            loginErrMsg.text('Incorrect username or password');
+                        }
+                    });
+                });
+                
+                $('#newacc').click(function(){
+                    loginForm.hide();
+                    createAccForm.show();
+                });
+                
+                createAccForm.submit(function(event) {
+                    event.preventDefault();
+                    socket.emit('create account', {name: new_name.val(), email: new_email.val(), username: new_username.val(), password: new_password.val() }, function(data) {
+                        if (data) {
+                            console.log('Account created successfully');
+                            createAccForm.hide();
+                            messageForm.show();
+                            nicknames.show();
+                            message.focus();
+                        }
+                        else {
+                            loginErrMsg.text('Error in saving new account or the username is already taken');
+                            createAccForm.hide();
+                            loginForm.show();
+                        }
+                    });
+                });
+                
+                $('#new_cancel').click(function(){
+                    createAccForm.hide();
+                    loginForm.show();
+                });
+                
+                
+                messageForm.submit(function(event) {
+                    event.preventDefault();
+                    socket.emit('user message', message.val());
+                    message.val('').focus();
+                });
+                
+                $('#kolak').click(function(){
+                    socket.emit('kolak');
+                });
+                
+                socket.on('nicknames', function(data) {
+                    var html = '';
+                    for (var i = 0; i < data.length; i++) {
+                        html += '<li>' + data[i] + '</li>';
+                    }
+                    nicknamesList.empty().append(html);
+                });
+                
+                socket.on('user message', function(data) {
+                    if (toggle)
+                    {
+                        toggle = false;
+                        messages.append('<p class="one"><strong>' + data.nick + ': </strong>' + data.message + '</p>');
+                    }
+                    else
+                    {
+                        toggle = true;
+                        messages.append('<p class="two"><strong>' + data.nick + ': </strong>' + data.message + '</p>');
+                    }
+                });
+                
+                socket.on('user join', function(data) {
+                    messages.append('<p><em>' + data.nick + ' has joined the chat room</em></p>');
+                });
+                
+                socket.on('user left', function(data) {
+                    messages.append('<p><em>' + data.nick + ' has left the chat room</em></p>');
+                });
+            });
+        </script>
+    </body>
+</html>
+
+        
